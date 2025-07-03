@@ -1,0 +1,19 @@
+{
+  "name": "sqlite-chat-backend",
+  "version": "1.0.0",
+  "description": "임시 SQLite 채팅 백엔드",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "nodemon index.js"
+  },
+  "dependencies": {
+    "sqlite3": "^5.1.6"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  },
+  "keywords": ["sqlite", "chat", "backend"],
+  "author": "",
+  "license": "ISC"
+}
