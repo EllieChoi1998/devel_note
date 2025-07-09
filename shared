@@ -1,1 +1,34 @@
 https://docs.google.com/document/d/16WmUbspxafFamnSnq99w0O1lZYBx2SSOsc42LE79bRY/edit?usp=sharing
+
+
+formatted_prompt = f"<start_of_turn>user\n{user_prompt}<end_of_turn>\n<start_of_turn>model\n"
+        
+        headers = {
+                "Authorization": "Bearer token-abc1885",
+                "Content-Type": "application/json"
+            }
+        payload = {
+            "prompt": formatted_prompt,
+            "max_tokens": 2048,
+            "temperature": 0.1,
+            "top_p": 0.9,
+            "stop": ["<end_of_turn>", "<eos>", "</s>"]  # Gemma-3-27b-it용 stop 토큰
+        }
+
+        print("I'm vllm! -- 2")
+        
+        try:
+            async with aiohttp.ClientSession() as session:
+                print("I'm vllm! -- 3")
+                async with session.post(
+                    f"{self.vllm_server}/v1/completions",
+                    json=payload,
+                    headers=headers,
+                    timeout=aiohttp.ClientTimeout(total=600)
+                ) as response:
+                    if response.status == 200:
+                        result = await response.json()
+                        return result.get("choices", [{}])[0].get("text", "").strip()
+                    else:
+                        error_text = await response.text()
+                        raise Exception(f"VLLM API Error {response.status}: {error_text}")
