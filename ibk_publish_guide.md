@@ -243,7 +243,8 @@ SELECT id, question FROM checklist LIMIT 3;
 ```
 
 # 위까지 다 했는데 문제생기면
-# 1. content_temp 컬럼이 있는지 확인하고 삭제
+## 1. content_temp 컬럼이 있는지 확인하고 삭제
+```bash
 docker exec -it ibk_mysql mysql -uroot -proot mydb -e "
 SET @exist := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS 
                WHERE TABLE_SCHEMA = 'mydb' 
@@ -274,8 +275,10 @@ ALTER TABLE checklist DROP COLUMN prompt_msg_temp;
 docker exec -it ibk_mysql mysql -uroot -proot mydb -e "
 SELECT id, question FROM checklist LIMIT 3;
 "
+```
 
-# content_temp 삭제 시도 (에러 나도 계속 진행)
+## content_temp 삭제 시도 (에러 나도 계속 진행) 버
+```bash
 docker exec -it ibk_mysql mysql -uroot -proot mydb -e "
 ALTER TABLE checklist DROP COLUMN content_temp;
 " 2>/dev/null || echo "content_temp 컬럼 없음 (정상)"
@@ -299,7 +302,7 @@ ALTER TABLE checklist DROP COLUMN prompt_msg_temp;
 "
 
 echo "✅ prompt_msg 컬럼 수정 완료"
-
+```
 ## 하고도 문제생길시
 일단, ibk_mysql 컨테이너 접속해서 termsNconditions 테이블 안에 데이터 삭제 delete from termsNcondition / delete from checklist 등
 약관제한 - docker exec -it ibk_backend /bin/bash 접속 뒤 python3 src/init_data.py 실행 
