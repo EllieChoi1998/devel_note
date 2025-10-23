@@ -300,6 +300,11 @@ ALTER TABLE checklist DROP COLUMN prompt_msg_temp;
 
 echo "✅ prompt_msg 컬럼 수정 완료"
 
+## 하고도 문제생길시
+일단, ibk_mysql 컨테이너 접속해서 termsNconditions 테이블 안에 데이터 삭제 delete from termsNcondition / delete from checklist 등
+약관제한 - docker exec -it ibk_backend /bin/bash 접속 뒤 python3 src/init_data.py 실행 
+체크리스트 - 아마도 다시 확인 . 안되면 tables.sql에 있는 내용 복붙해서 직접 입력
+
 # 결과 확인
 echo ""
 echo "=== 결과 확인 ==="
