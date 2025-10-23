@@ -463,3 +463,119 @@ find . -type f -exec file -i {} \; | grep -v utf-8
 **배포 완료! 🎉**
 
 문제 발생 시 위 트러블슈팅 섹션을 참조하거나 로그를 확인하세요.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+------------
+# 추가
+MySQL 8.0에서는 DROP COLUMN IF EXISTS 구문이 지원되지 않네요. 다른 방법을 사용하겠습니다.
+🔧 올바른 명령어
+```bash
+# 1. content_temp 컬럼이 있는지 확인하고 삭제
+docker exec -it ibk_mysql mysql -uroot -proot mydb -e "
+SET @exist := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS 
+               WHERE TABLE_SCHEMA = 'mydb' 
+               AND TABLE_NAME = 'checklist' 
+               AND COLUMN_NAME = 'content_temp');
+SET @sqlstmt := IF(@exist > 0, 'ALTER TABLE checklist DROP COLUMN content_temp', 'SELECT 1');
+PREPARE stmt FROM @sqlstmt;
+EXECUTE stmt;
+"
+
+# 2. question 컬럼 수정
+docker exec -it ibk_mysql mysql -uroot -proot mydb -e "
+ALTER TABLE checklist ADD COLUMN question_temp VARCHAR(512) CHARACTER SET utf8mb4;
+UPDATE checklist SET question_temp = CONVERT(CAST(CONVERT(question USING latin1) AS BINARY) USING utf8mb4);
+UPDATE checklist SET question = question_temp;
+ALTER TABLE checklist DROP COLUMN question_temp;
+"
+
+# 3. prompt_msg 컬럼 수정
+docker exec -it ibk_mysql mysql -uroot -proot mydb -e "
+ALTER TABLE checklist ADD COLUMN prompt_msg_temp VARCHAR(2000) CHARACTER SET utf8mb4;
+UPDATE checklist SET prompt_msg_temp = CONVERT(CAST(CONVERT(prompt_msg USING latin1) AS BINARY) USING utf8mb4);
+UPDATE checklist SET prompt_msg = prompt_msg_temp;
+ALTER TABLE checklist DROP COLUMN prompt_msg_temp;
+"
+
+# 4. 결과 확인
+docker exec -it ibk_mysql mysql -uroot -proot mydb -e "
+SELECT id, question FROM checklist LIMIT 3;
+"
+```
+
+## 혹은 더 간단하게 (에러무시)
+```bash
+# content_temp 삭제 시도 (에러 나도 계속 진행)
+docker exec -it ibk_mysql mysql -uroot -proot mydb -e "
+ALTER TABLE checklist DROP COLUMN content_temp;
+" 2>/dev/null || echo "content_temp 컬럼 없음 (정상)"
+
+# question 컬럼 수정
+docker exec -it ibk_mysql mysql -uroot -proot mydb -e "
+ALTER TABLE checklist ADD COLUMN question_temp VARCHAR(512) CHARACTER SET utf8mb4;
+UPDATE checklist SET question_temp = CONVERT(CAST(CONVERT(question USING latin1) AS BINARY) USING utf8mb4);
+UPDATE checklist SET question = question_temp;
+ALTER TABLE checklist DROP COLUMN question_temp;
+"
+
+echo "✅ question 컬럼 수정 완료"
+
+# prompt_msg 컬럼 수정
+docker exec -it ibk_mysql mysql -uroot -proot mydb -e "
+ALTER TABLE checklist ADD COLUMN prompt_msg_temp VARCHAR(2000) CHARACTER SET utf8mb4;
+UPDATE checklist SET prompt_msg_temp = CONVERT(CAST(CONVERT(prompt_msg USING latin1) AS BINARY) USING utf8mb4);
+UPDATE checklist SET prompt_msg = prompt_msg_temp;
+ALTER TABLE checklist DROP COLUMN prompt_msg_temp;
+"
+
+echo "✅ prompt_msg 컬럼 수정 완료"
+
+# 결과 확인
+echo ""
+echo "=== 결과 확인 ==="
+docker exec -it ibk_mysql mysql -uroot -proot mydb -e "
+SELECT id, LEFT(question, 80) AS question_preview FROM checklist LIMIT 3;
+"
+```
+## 🔍 실제 데이터 확인 방법
+### 1️⃣ HEX 값으로 확인 (데이터가 제대로 저장되었는지)
+```bash
+docker exec -it ibk_mysql mysql -uroot -proot mydb -e "
+SELECT id, HEX(LEFT(question, 20)) as hex_value FROM checklist LIMIT 1;
+"
+```
+### 3️⃣ MySQL 접속 시 문자셋 명시
+docker exec -it ibk_mysql mysql -uroot -proot mydb --default-character-set=utf8mb4 -e "
+SELECT id, question FROM checklist LIMIT 3;
+"
+```
+
+### 🔧 만약 여전히 프론트엔드에서 깨진다면
+#### 다시 이중 인코딩 문제일 수 있습니다. 그럴 경우:
+```bash
+# 반대로 변환 시도 (UTF-8 → Latin-1로 재해석)
+docker exec -it ibk_mysql mysql -uroot -proot mydb << 'EOFMYSQL'
+ALTER TABLE checklist ADD COLUMN question_temp VARCHAR(512) CHARACTER SET utf8mb4;
+UPDATE checklist SET question_temp = CONVERT(CAST(CONVERT(question USING utf8mb4) AS BINARY) USING latin1);
+UPDATE checklist SET question = question_temp;
+ALTER TABLE checklist DROP COLUMN question_temp;
+
+ALTER TABLE checklist ADD COLUMN prompt_msg_temp VARCHAR(2000) CHARACTER SET utf8mb4;
+UPDATE checklist SET prompt_msg_temp = CONVERT(CAST(CONVERT(prompt_msg USING utf8mb4) AS BINARY) USING latin1);
+UPDATE checklist SET prompt_msg = prompt_msg_temp;
+ALTER TABLE checklist DROP COLUMN prompt_msg_temp;
+EOFMYSQL
+```
